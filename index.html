@@ -174,7 +174,7 @@
             fontSize, setFontSize, 
             showSettings, setShowSettings, 
             isSpeaking, toggleSpeech, 
-            setMode 
+            setMode, canEdit 
         }) => {
             const t = THEMES[theme];
             
@@ -268,14 +268,17 @@
                             {isSpeaking ? <Icons.PauseCircle className="w-6 h-6" /> : <Icons.PlayCircle className="w-6 h-6" />}
                         </button>
                         
-                        <div className="w-px h-8 bg-slate-200 dark:bg-slate-700"></div>
-                        
-                        <button 
-                            onClick={() => setMode('editor')}
-                            className="flex flex-col items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-indigo-500"
-                        >
-                            <Icons.Edit3 className="w-6 h-6" />
-                        </button>
+                        {canEdit && (
+                            <>
+                                <div className="w-px h-8 bg-slate-200 dark:bg-slate-700"></div>
+                                <button 
+                                    onClick={() => setMode('editor')}
+                                    className="flex flex-col items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-indigo-500"
+                                >
+                                    <Icons.Edit3 className="w-6 h-6" />
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
             );
@@ -300,6 +303,10 @@
             
             // UI States
             const [toast, setToast] = React.useState(null);
+
+            // Determine if the user is the author or a visitor based on initial load
+            // If the page loads with a hash, it's a shared link -> Read Only
+            const [canEdit, setCanEdit] = React.useState(!window.location.hash.substring(1));
 
             // --- Initialization & URL Loading ---
             React.useEffect(() => {
@@ -432,7 +439,7 @@
                         </div>
                     )}
 
-                    {/* Navbar */}
+                    {/* Navbar - Only shown in Editor Mode */}
                     {mode === 'editor' && (
                         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-slate-200">
                             <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -487,6 +494,7 @@
                             isSpeaking={isSpeaking}
                             toggleSpeech={toggleSpeech}
                             setMode={setMode}
+                            canEdit={canEdit} 
                         />
                     )}
                 </div>
