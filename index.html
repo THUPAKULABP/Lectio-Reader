@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lectio - Beautiful Reader</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        telugu: ['"Noto Sans Telugu"', 'sans-serif'],
+                        urdu: ['"Noto Nastaliq Urdu"', 'serif'],
+                        hindi: ['"Noto Sans Devanagari"', 'sans-serif'],
+                        serif: ['"Merriweather"', 'serif'],
+                        sans: ['"Inter"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Noto+Nastaliq+Urdu:wght@400;700&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+Telugu:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        /* Custom Font Rules */
+        .font-urdu { font-family: 'Noto Nastaliq Urdu', serif; line-height: 2.5 !important; }
+        
+        /* Hide scrollbar */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+
+        /* Input Fixes for Tall Fonts */
+        input.title-input {
+            line-height: 1.5;
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Icons Component Map (Inline SVGs to avoid dependency issues) ---
+        const Icons = {
+            BookOpen: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>,
+            Edit3: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>,
+            Share2: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
+            Settings: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
+            Type: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>,
+            Moon: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
+            Sun: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
+            Coffee: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>,
+            PlayCircle: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>,
+            PauseCircle: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>,
+            Save: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
+            Check: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+            Languages: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>,
+            X: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        };
+
+        // --- Firebase Config (User provided environment variables) ---
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // --- Constants ---
+        const THEMES = {
+            light: { bg: 'bg-white', text: 'text-slate-800', accent: 'text-indigo-600', border: 'border-slate-200', secondary: 'bg-slate-50' },
+            sepia: { bg: 'bg-[#f4ecd8]', text: 'text-[#5b4636]', accent: 'text-[#8f6d52]', border: 'border-[#e3d7bf]', secondary: 'bg-[#e9dec5]' },
+            dark: { bg: 'bg-slate-900', text: 'text-slate-300', accent: 'text-indigo-400', border: 'border-slate-800', secondary: 'bg-slate-800' },
+            midnight: { bg: 'bg-black', text: 'text-gray-400', accent: 'text-gray-200', border: 'border-gray-800', secondary: 'bg-gray-900' }
+        };
+
+        const LANGUAGES = [
+            { id: 'en', name: 'English', font: 'font-sans', dir: 'ltr', placeholder: 'Lesson Title' },
+            { id: 'te', name: 'Telugu (తెలుగు)', font: 'font-telugu', dir: 'ltr', placeholder: 'పాఠం శీర్షిక' },
+            { id: 'hi', name: 'Hindi (हिंदी)', font: 'font-hindi', dir: 'ltr', placeholder: 'पाठ शीर्षक' },
+            { id: 'ur', name: 'Urdu (اردو)', font: 'font-urdu', dir: 'rtl', placeholder: 'سبق کا عنوان' },
+        ];
+
+        // --- Main App Component ---
+        function App() {
+            const [user, setUser] = React.useState(null);
+            const [mode, setMode] = React.useState('editor');
+            const [loading, setLoading] = React.useState(true);
+            
+            // Content State
+            const [title, setTitle] = React.useState('');
+            const [content, setContent] = React.useState('');
+            const [selectedLang, setSelectedLang] = React.useState(LANGUAGES[0]);
+            const [lessonId, setLessonId] = React.useState(null);
+            
+            // Reader Settings
+            const [theme, setTheme] = React.useState('light');
+            const [fontSize, setFontSize] = React.useState(18);
+            const [showSettings, setShowSettings] = React.useState(false);
+            const [isSpeaking, setIsSpeaking] = React.useState(false);
+            
+            // UI States
+            const [toast, setToast] = React.useState(null);
+
+            // --- Auth & Init ---
+            React.useEffect(() => {
+                const initAuth = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                };
+                initAuth();
+
+                const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+                    setUser(currentUser);
+                    if (currentUser) {
+                        const params = new URLSearchParams(window.location.search);
+                        const sharedId = params.get('id');
+                        if (sharedId) {
+                            fetchLesson(sharedId);
+                        } else {
+                            setLoading(false);
+                        }
+                    }
+                });
+                return () => unsubscribe();
+            }, []);
+
+            // --- Firestore Operations ---
+            const saveLesson = async () => {
+                if (!user || !title.trim() || !content.trim()) {
+                    showToast("Please enter a title and content", "error");
+                    return;
+                }
+                
+                setLoading(true);
+                try {
+                    const newId = lessonId || Math.random().toString(36).substring(2, 15);
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'lessons', newId);
+                    
+                    await setDoc(docRef, {
+                        title,
+                        content,
+                        langId: selectedLang.id,
+                        authorId: user.uid,
+                        createdAt: new Date().toISOString()
+                    });
+                    
+                    setLessonId(newId);
+                    showToast("Lesson saved successfully!", "success");
+                    
+                    // Safe URL update
+                    try {
+                        const newUrl = `${window.location.pathname}?id=${newId}`;
+                        window.history.pushState({ path: newUrl }, '', newUrl);
+                    } catch (e) {
+                        console.warn("URL update suppressed for security context");
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast("Failed to save lesson", "error");
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const fetchLesson = async (id) => {
+                setLoading(true);
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'lessons', id);
+                    const snap = await getDoc(docRef);
+                    
+                    if (snap.exists()) {
+                        const data = snap.data();
+                        setTitle(data.title);
+                        setContent(data.content);
+                        const lang = LANGUAGES.find(l => l.id === data.langId) || LANGUAGES[0];
+                        setSelectedLang(lang);
+                        setLessonId(id);
+                        setMode('reader'); 
+                    } else {
+                        showToast("Lesson not found", "error");
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast("Error loading lesson", "error");
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            // --- Utilities ---
+            const showToast = (msg, type = 'success') => {
+                setToast({ msg, type });
+                setTimeout(() => setToast(null), 3000);
+            };
+
+            const copyLink = () => {
+                if (!lessonId) {
+                    showToast("Save the lesson first!", "error");
+                    return;
+                }
+                const url = `${window.location.origin}${window.location.pathname}?id=${lessonId}`;
+                const textArea = document.createElement("textarea");
+                textArea.value = url;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast("Link copied to clipboard!", "success");
+                } catch (err) {
+                    showToast("Failed to copy link", "error");
+                }
+                document.body.removeChild(textArea);
+            };
+
+            const toggleSpeech = () => {
+                if (isSpeaking) {
+                    window.speechSynthesis.cancel();
+                    setIsSpeaking(false);
+                } else {
+                    const utterance = new SpeechSynthesisUtterance(content);
+                    const voices = window.speechSynthesis.getVoices();
+                    const langCodeMap = { 'te': 'te-IN', 'hi': 'hi-IN', 'ur': 'ur-PK', 'en': 'en-US' };
+                    const targetLang = langCodeMap[selectedLang.id];
+                    
+                    const voice = voices.find(v => v.lang.includes(targetLang));
+                    if (voice) {
+                        utterance.voice = voice;
+                    } else {
+                        showToast(`No specific voice found for ${selectedLang.name}, using default.`, 'error');
+                    }
+                    
+                    utterance.onend = () => setIsSpeaking(false);
+                    window.speechSynthesis.speak(utterance);
+                    setIsSpeaking(true);
+                }
+            };
+
+            // --- Views ---
+            const EditorView = () => (
+                <div className="max-w-3xl mx-auto w-full px-4 py-8 animate-fade-in">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        {/* Toolbar */}
+                        <div className="border-b border-slate-100 p-4 flex items-center justify-between flex-wrap gap-3 bg-slate-50">
+                            <div className="flex items-center space-x-2">
+                                <Icons.Languages className="w-5 h-5 text-slate-500" />
+                                <div className="relative">
+                                    <select 
+                                        value={selectedLang.id}
+                                        onChange={(e) => setSelectedLang(LANGUAGES.find(l => l.id === e.target.value))}
+                                        className="appearance-none bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 pr-8 outline-none font-medium cursor-pointer"
+                                    >
+                                        {LANGUAGES.map(lang => (
+                                            <option key={lang.id} value={lang.id}>{lang.name}</option>
+                                        ))}
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-700">
+                                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="text-xs text-slate-500 font-medium px-3 py-1 bg-slate-100 rounded-full border border-slate-200">
+                                {selectedLang.dir === 'rtl' ? 'Right-to-Left Mode' : 'Left-to-Right Mode'}
+                            </div>
+                        </div>
+
+                        {/* Inputs - Fixed for Typing Height */}
+                        <div className="p-6 space-y-6">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                    {selectedLang.id === 'en' ? 'Lesson Title' : `${selectedLang.name} Title`}
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder={selectedLang.placeholder}
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    className={`w-full text-3xl font-bold placeholder-slate-300 border-none focus:ring-0 outline-none p-0 text-slate-900 title-input ${selectedLang.font}`}
+                                    dir={selectedLang.dir}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                    Content
+                                </label>
+                                <textarea
+                                    placeholder="Paste or write your lesson content here..."
+                                    value={content}
+                                    onChange={(e) => setContent(e.target.value)}
+                                    className={`w-full h-[60vh] resize-none text-lg leading-loose placeholder-slate-300 border-none focus:ring-0 outline-none p-0 text-slate-700 ${selectedLang.font}`}
+                                    dir={selectedLang.dir}
+                                    style={{ lineHeight: selectedLang.id === 'ur' ? '2.5' : '1.8' }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            const ReaderView = () => {
+                const t = THEMES[theme];
+                
+                return (
+                    <div className={`min-h-screen transition-colors duration-500 ${t.bg} ${t.text}`}>
+                        <div className="max-w-2xl mx-auto px-6 py-12 md:py-20 animate-fade-in pb-32">
+                            
+                            <h1 className={`text-4xl md:text-5xl font-bold mb-8 leading-tight ${selectedLang.font} ${t.accent}`} dir={selectedLang.dir}
+                                style={{ lineHeight: selectedLang.id === 'ur' ? '1.8' : '1.2' }}>
+                                {title || "Untitled Lesson"}
+                            </h1>
+                            
+                            <div 
+                                className={`prose prose-lg max-w-none ${selectedLang.font}`}
+                                style={{ 
+                                    fontSize: `${fontSize}px`, 
+                                    lineHeight: selectedLang.id === 'ur' ? '2.4' : '1.8',
+                                    direction: selectedLang.dir,
+                                    color: 'inherit'
+                                }}
+                            >
+                                {content.split('\n').map((paragraph, idx) => (
+                                    paragraph.trim() && (
+                                        <p key={idx} className="mb-6 opacity-90">
+                                            {paragraph}
+                                        </p>
+                                    )
+                                ))}
+                                {!content && <p className="opacity-50 italic">No content to display.</p>}
+                            </div>
+                        </div>
+
+                        {/* Reader Controls */}
+                        {showSettings && (
+                            <div className="fixed bottom-20 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-[500px] z-50">
+                                <div className={`${t.secondary} border ${t.border} shadow-2xl rounded-2xl p-5 animate-fade-in`}>
+                                    <div className="flex justify-between items-center mb-4 border-b pb-2 border-white/10">
+                                        <span className="font-semibold text-sm uppercase tracking-wider opacity-70">Reader Settings</span>
+                                        <button onClick={() => setShowSettings(false)}><Icons.X className="w-5 h-5 opacity-50 hover:opacity-100"/></button>
+                                    </div>
+
+                                    <div className="flex justify-between gap-2 mb-6">
+                                        {Object.keys(THEMES).map((k) => (
+                                            <button
+                                                key={k}
+                                                onClick={() => setTheme(k)}
+                                                className={`flex-1 h-10 rounded-lg border flex items-center justify-center transition-all ${
+                                                    theme === k ? 'ring-2 ring-indigo-500 ring-offset-2' : 'border-transparent'
+                                                } ${THEMES[k].bg} ${THEMES[k].border}`}
+                                                title={k}
+                                            >
+                                                {k === 'light' && <Icons.Sun className="w-4 h-4 text-slate-800" />}
+                                                {k === 'sepia' && <Icons.Coffee className="w-4 h-4 text-[#5b4636]" />}
+                                                {k === 'dark' && <Icons.Moon className="w-4 h-4 text-slate-300" />}
+                                                {k === 'midnight' && <div className="w-4 h-4 bg-gray-400 rounded-full" />}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <div className="flex items-center gap-4">
+                                        <Icons.Type className="w-4 h-4 opacity-50" />
+                                        <input 
+                                            type="range" 
+                                            min="14" 
+                                            max="32" 
+                                            value={fontSize} 
+                                            onChange={(e) => setFontSize(parseInt(e.target.value))}
+                                            className="w-full accent-indigo-500 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                        />
+                                        <span className="text-sm font-mono opacity-70 min-w-[30px] text-right">{fontSize}px</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* FAB */}
+                        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md shadow-lg border border-slate-200 dark:border-slate-700 rounded-full px-6 py-3 flex items-center gap-6 transition-all">
+                            <button 
+                                onClick={() => setShowSettings(!showSettings)}
+                                className={`flex flex-col items-center gap-1 ${showSettings ? 'text-indigo-500' : 'text-slate-500 dark:text-slate-400'}`}
+                            >
+                                <Icons.Settings className="w-6 h-6" />
+                            </button>
+                            
+                            <div className="w-px h-8 bg-slate-200 dark:bg-slate-700"></div>
+                            
+                            <button 
+                                onClick={toggleSpeech}
+                                className={`flex flex-col items-center gap-1 ${isSpeaking ? 'text-rose-500 animate-pulse' : 'text-slate-500 dark:text-slate-400'}`}
+                            >
+                                {isSpeaking ? <Icons.PauseCircle className="w-6 h-6" /> : <Icons.PlayCircle className="w-6 h-6" />}
+                            </button>
+                            
+                            <div className="w-px h-8 bg-slate-200 dark:bg-slate-700"></div>
+                            
+                            <button 
+                                onClick={() => setMode('editor')}
+                                className="flex flex-col items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-indigo-500"
+                            >
+                                <Icons.Edit3 className="w-6 h-6" />
+                            </button>
+                        </div>
+                    </div>
+                );
+            };
+
+            if (loading) {
+                return (
+                    <div className="h-screen w-full flex items-center justify-center bg-slate-50">
+                        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen">
+                    {/* Toast */}
+                    {toast && (
+                        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-lg flex items-center gap-2 animate-fade-in ${
+                            toast.type === 'error' ? 'bg-rose-500 text-white' : 'bg-emerald-600 text-white'
+                        }`}>
+                            {toast.type === 'error' ? <Icons.X className="w-4 h-4"/> : <Icons.Check className="w-4 h-4"/>}
+                            <span className="text-sm font-medium">{toast.msg}</span>
+                        </div>
+                    )}
+
+                    {/* Navbar */}
+                    {mode === 'editor' && (
+                        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-slate-200">
+                            <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="bg-indigo-600 p-2 rounded-lg">
+                                        <Icons.BookOpen className="w-5 h-5 text-white" />
+                                    </div>
+                                    <span className="font-bold text-xl tracking-tight text-slate-800">Lectio</span>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    {lessonId && (
+                                        <button 
+                                            onClick={copyLink}
+                                            className="hidden md:flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors text-sm font-medium"
+                                        >
+                                            <Icons.Share2 className="w-4 h-4" />
+                                            Share
+                                        </button>
+                                    )}
+                                    
+                                    <button 
+                                        onClick={saveLesson}
+                                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-colors text-sm font-medium shadow-sm hover:shadow"
+                                    >
+                                        <Icons.Save className="w-4 h-4" />
+                                        <span>Save</span>
+                                    </button>
+
+                                    <button 
+                                        onClick={() => setMode('reader')}
+                                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full transition-colors text-sm font-medium shadow-sm hover:shadow"
+                                    >
+                                        <Icons.BookOpen className="w-4 h-4" />
+                                        <span>Read</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </header>
+                    )}
+
+                    {mode === 'editor' ? <EditorView /> : <ReaderView />}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
