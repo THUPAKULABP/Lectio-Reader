@@ -14,6 +14,10 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Compression Library for Sharing (LZ-String) -->
+    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -64,16 +68,12 @@
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
         // --- Icons Component Map ---
         const Icons = {
             BookOpen: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>,
             Edit3: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>,
             Share2: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
-            Settings: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
+            Settings: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
             Type: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>,
             Moon: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
             Sun: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
@@ -83,15 +83,9 @@
             Save: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
             Check: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
             Languages: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>,
-            X: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            X: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+            Link: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
         };
-
-        // --- Firebase Config ---
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
         // --- Constants ---
         const THEMES = {
@@ -108,8 +102,7 @@
             { id: 'ur', name: 'Urdu (اردو)', font: 'font-urdu', dir: 'rtl', placeholder: 'سبق کا عنوان' },
         ];
 
-        // --- Components Defined OUTSIDE App to prevent focus loss ---
-        
+        // --- Editor Component ---
         const EditorView = ({ 
             title, setTitle, 
             content, setContent, 
@@ -174,6 +167,7 @@
             </div>
         );
 
+        // --- Reader Component ---
         const ReaderView = ({ 
             title, content, selectedLang, 
             theme, setTheme, 
@@ -289,7 +283,6 @@
 
         // --- Main App Component ---
         function App() {
-            const [user, setUser] = React.useState(null);
             const [mode, setMode] = React.useState('editor');
             const [loading, setLoading] = React.useState(true);
             
@@ -308,94 +301,41 @@
             // UI States
             const [toast, setToast] = React.useState(null);
 
-            // --- Auth & Init ---
+            // --- Initialization & URL Loading ---
             React.useEffect(() => {
-                const initAuth = async () => {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
+                const loadFromUrl = () => {
+                    try {
+                        const hash = window.location.hash.substring(1); // Remove '#'
+                        if (!hash) {
+                            setLoading(false);
+                            return;
+                        }
+
+                        // Try decoding from LZString
+                        const decompressed = LZString.decompressFromEncodedURIComponent(hash);
+                        if (decompressed) {
+                            const data = JSON.parse(decompressed);
+                            setTitle(data.title || '');
+                            setContent(data.content || '');
+                            const lang = LANGUAGES.find(l => l.id === data.langId) || LANGUAGES[0];
+                            setSelectedLang(lang);
+                            setLessonId(true); // Mark as "loaded"
+                            setMode('reader');
+                        }
+                    } catch (e) {
+                        console.error("Failed to load lesson from URL", e);
+                        showToast("Failed to load lesson link", "error");
+                    } finally {
+                        setLoading(false);
                     }
                 };
-                initAuth();
 
-                const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-                    setUser(currentUser);
-                    if (currentUser) {
-                        const params = new URLSearchParams(window.location.search);
-                        const sharedId = params.get('id');
-                        if (sharedId) {
-                            fetchLesson(sharedId);
-                        } else {
-                            setLoading(false);
-                        }
-                    }
-                });
-                return () => unsubscribe();
+                loadFromUrl();
+
+                // Listen for hash changes (back/forward button)
+                window.addEventListener('hashchange', loadFromUrl);
+                return () => window.removeEventListener('hashchange', loadFromUrl);
             }, []);
-
-            // --- Firestore Operations ---
-            const saveLesson = async () => {
-                if (!user || !title.trim() || !content.trim()) {
-                    showToast("Please enter a title and content", "error");
-                    return;
-                }
-                
-                // Optimistic UI: Don't block full screen loading, just show toast process
-                const newId = lessonId || Math.random().toString(36).substring(2, 15);
-                const toastId = showToast("Saving...", "info"); // Placeholder logic for complex toasts
-
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'lessons', newId);
-                    
-                    await setDoc(docRef, {
-                        title,
-                        content,
-                        langId: selectedLang.id,
-                        authorId: user.uid,
-                        createdAt: new Date().toISOString()
-                    });
-                    
-                    setLessonId(newId);
-                    showToast("Lesson saved successfully!", "success");
-                    
-                    // Safe URL update
-                    try {
-                        const newUrl = `${window.location.pathname}?id=${newId}`;
-                        window.history.pushState({ path: newUrl }, '', newUrl);
-                    } catch (e) {
-                        console.warn("URL update suppressed for security context");
-                    }
-                } catch (err) {
-                    console.error(err);
-                    showToast("Failed to save lesson", "error");
-                }
-            };
-
-            const fetchLesson = async (id) => {
-                setLoading(true);
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'lessons', id);
-                    const snap = await getDoc(docRef);
-                    
-                    if (snap.exists()) {
-                        const data = snap.data();
-                        setTitle(data.title);
-                        setContent(data.content);
-                        const lang = LANGUAGES.find(l => l.id === data.langId) || LANGUAGES[0];
-                        setSelectedLang(lang);
-                        setLessonId(id);
-                        setMode('reader'); 
-                    } else {
-                        showToast("Lesson not found", "error");
-                    }
-                } catch (err) {
-                    console.error(err);
-                    showToast("Error loading lesson", "error");
-                } finally {
-                    setLoading(false);
-                }
-            };
 
             // --- Utilities ---
             const showToast = (msg, type = 'success') => {
@@ -403,23 +343,52 @@
                 setTimeout(() => setToast(null), 3000);
             };
 
-            const copyLink = () => {
-                if (!lessonId) {
-                    showToast("Save the lesson first!", "error");
+            const generateLink = () => {
+                if (!title.trim() || !content.trim()) {
+                    showToast("Please enter a title and content first", "error");
                     return;
                 }
-                const url = `${window.location.origin}${window.location.pathname}?id=${lessonId}`;
-                const textArea = document.createElement("textarea");
-                textArea.value = url;
-                document.body.appendChild(textArea);
-                textArea.select();
+
                 try {
-                    document.execCommand('copy');
-                    showToast("Link copied to clipboard!", "success");
-                } catch (err) {
-                    showToast("Failed to copy link", "error");
+                    const data = {
+                        title,
+                        content,
+                        langId: selectedLang.id,
+                        v: 1 // Versioning for future compatibility
+                    };
+                    
+                    // Compress data into URL safe string
+                    const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(data));
+                    
+                    // Update URL hash without reloading
+                    window.location.hash = compressed;
+                    setLessonId(true);
+                    
+                    // Copy to clipboard
+                    const url = window.location.href;
+                    
+                    // Clipboard API with fallback
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                         navigator.clipboard.writeText(url).then(() => {
+                             showToast("Link Copied! Share it with anyone.", "success");
+                         }).catch(() => {
+                             prompt("Copy this link:", url); // Fallback if auto-copy fails
+                         });
+                    } else {
+                        // Fallback for older browsers / webviews
+                        const textArea = document.createElement("textarea");
+                        textArea.value = url;
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                        showToast("Link Copied!", "success");
+                    }
+                    
+                } catch (e) {
+                    console.error("Link generation failed", e);
+                    showToast("Content too long for URL sharing", "error");
                 }
-                document.body.removeChild(textArea);
             };
 
             const toggleSpeech = () => {
@@ -475,22 +444,12 @@
                                 </div>
 
                                 <div className="flex items-center gap-3">
-                                    {lessonId && (
-                                        <button 
-                                            onClick={copyLink}
-                                            className="hidden md:flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors text-sm font-medium"
-                                        >
-                                            <Icons.Share2 className="w-4 h-4" />
-                                            Share
-                                        </button>
-                                    )}
-                                    
                                     <button 
-                                        onClick={saveLesson}
+                                        onClick={generateLink}
                                         className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-colors text-sm font-medium shadow-sm hover:shadow"
                                     >
-                                        <Icons.Save className="w-4 h-4" />
-                                        <span>Save</span>
+                                        <Icons.Link className="w-4 h-4" />
+                                        <span>Create Link</span>
                                     </button>
 
                                     <button 
