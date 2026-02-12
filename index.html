@@ -331,6 +331,7 @@
 
         // --- Main App Component ---
         function App() {
+            const utteranceRef = React.useRef(null);
             const [mode, setMode] = React.useState('editor');
             const [loading, setLoading] = React.useState(true);
 
@@ -386,7 +387,10 @@
 
                 // Listen for hash changes (back/forward button)
                 window.addEventListener('hashchange', loadFromUrl);
-                return () => window.removeEventListener('hashchange', loadFromUrl);
+                return () => {
+                    window.removeEventListener('hashchange', loadFromUrl);
+                    window.speechSynthesis.cancel(); // Cleanup speech on unmount
+                };
             }, []);
 
             // --- Utilities ---
@@ -448,17 +452,41 @@
                     window.speechSynthesis.cancel();
                     setIsSpeaking(false);
                 } else {
+                    // Cancel any previous speaking to be safe
+                    window.speechSynthesis.cancel();
+
                     const utterance = new SpeechSynthesisUtterance(content);
+                    utteranceRef.current = utterance; // Keep reference to prevent GC
+
                     const voices = window.speechSynthesis.getVoices();
                     const langCodeMap = { 'te': 'te-IN', 'hi': 'hi-IN', 'ur': 'ur-PK', 'en': 'en-US' };
-                    const targetLang = langCodeMap[selectedLang.id];
+                    // Default to English if lang not in map, though all are covered
+                    const targetLang = langCodeMap[selectedLang.id] || 'en-US';
 
-                    const voice = voices.find(v => v.lang.includes(targetLang));
+                    // Try to find exact match
+                    let voice = voices.find(v => v.lang.includes(targetLang));
+                    
+                    // Fallback to broader language match (e.g. 'en' if 'en-US' not found)
+                    if (!voice) {
+                         const shortLang = targetLang.split('-')[0];
+                         voice = voices.find(v => v.lang.startsWith(shortLang));
+                    }
+
                     if (voice) {
                         utterance.voice = voice;
                     }
 
-                    utterance.onend = () => setIsSpeaking(false);
+                    utterance.onend = () => {
+                        setIsSpeaking(false);
+                        utteranceRef.current = null;
+                    };
+
+                    utterance.onerror = (e) => {
+                        console.error("Speech synthesis error:", e);
+                        setIsSpeaking(false);
+                        utteranceRef.current = null;
+                    };
+
                     window.speechSynthesis.speak(utterance);
                     setIsSpeaking(true);
                 }
