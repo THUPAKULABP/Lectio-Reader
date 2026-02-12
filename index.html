@@ -346,6 +346,9 @@
             const [fontSize, setFontSize] = React.useState(18);
             const [showSettings, setShowSettings] = React.useState(false);
             const [isSpeaking, setIsSpeaking] = React.useState(false);
+            const [availableVoices, setAvailableVoices] = React.useState([]);
+            const speechQueueRef = React.useRef([]);
+            const isSpeakingRef = React.useRef(false); // Ref for immediate access in callbacks
 
             // UI States
             const [toast, setToast] = React.useState(null);
@@ -391,6 +394,28 @@
                     window.removeEventListener('hashchange', loadFromUrl);
                     window.speechSynthesis.cancel(); // Cleanup speech on unmount
                 };
+                return () => {
+                    window.removeEventListener('hashchange', loadFromUrl);
+                    window.speechSynthesis.cancel(); // Cleanup speech on unmount
+                    isSpeakingRef.current = false;
+                };
+            }, []);
+
+            // --- Voice Loading ---
+            React.useEffect(() => {
+                const loadVoices = () => {
+                    let voices = window.speechSynthesis.getVoices();
+                    if (voices.length > 0) {
+                        setAvailableVoices(voices);
+                    }
+                };
+
+                loadVoices();
+
+                // Chrome loads voices asynchronously
+                if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                    window.speechSynthesis.onvoiceschanged = loadVoices;
+                }
             }, []);
 
             // --- Utilities ---
@@ -447,48 +472,71 @@
                 }
             };
 
+            // --- Speech Logic ---
+            const speakChunk = (chunks, index, voice) => {
+                if (index >= chunks.length || !isSpeakingRef.current) {
+                    setIsSpeaking(false);
+                    isSpeakingRef.current = false;
+                    return;
+                }
+
+                const chunk = chunks[index];
+                const utterance = new SpeechSynthesisUtterance(chunk);
+                utteranceRef.current = utterance; // Prevent GC
+
+                if (voice) utterance.voice = voice;
+
+                // Event Handlers
+                utterance.onend = () => {
+                    if (isSpeakingRef.current) {
+                        speakChunk(chunks, index + 1, voice);
+                    }
+                };
+
+                utterance.onerror = (e) => {
+                    console.error("Speech chunk error:", e);
+                    // Try next chunk even if one fails
+                    if (isSpeakingRef.current) {
+                        speakChunk(chunks, index + 1, voice);
+                    }
+                };
+
+                window.speechSynthesis.speak(utterance);
+            };
+
             const toggleSpeech = () => {
                 if (isSpeaking) {
                     window.speechSynthesis.cancel();
+                    isSpeakingRef.current = false;
                     setIsSpeaking(false);
+                    utteranceRef.current = null;
                 } else {
-                    // Cancel any previous speaking to be safe
+                    // 1. Cancel existing
                     window.speechSynthesis.cancel();
 
-                    const utterance = new SpeechSynthesisUtterance(content);
-                    utteranceRef.current = utterance; // Keep reference to prevent GC
+                    // 2. Prepare content
+                    // Split by punctuation to avoid long-text bugs in browsers
+                    // Looks for periods, questions, exclamations, or newlines followed by whitespace
+                    const chunks = content.match(/[^.?!]+[.?!]+|[^.?!]+$/g) || [content];
 
-                    const voices = window.speechSynthesis.getVoices();
+                    if (chunks.length === 0) return;
+
+                    // 3. Select Voice
                     const langCodeMap = { 'te': 'te-IN', 'hi': 'hi-IN', 'ur': 'ur-PK', 'en': 'en-US' };
-                    // Default to English if lang not in map, though all are covered
                     const targetLang = langCodeMap[selectedLang.id] || 'en-US';
 
-                    // Try to find exact match
-                    let voice = voices.find(v => v.lang.includes(targetLang));
-                    
-                    // Fallback to broader language match (e.g. 'en' if 'en-US' not found)
+                    // Use the state 'availableVoices' which is now guaranteed to be populated if possible
+                    let voice = availableVoices.find(v => v.lang.includes(targetLang));
+
                     if (!voice) {
-                         const shortLang = targetLang.split('-')[0];
-                         voice = voices.find(v => v.lang.startsWith(shortLang));
+                        const shortLang = targetLang.split('-')[0];
+                        voice = availableVoices.find(v => v.lang.startsWith(shortLang));
                     }
 
-                    if (voice) {
-                        utterance.voice = voice;
-                    }
-
-                    utterance.onend = () => {
-                        setIsSpeaking(false);
-                        utteranceRef.current = null;
-                    };
-
-                    utterance.onerror = (e) => {
-                        console.error("Speech synthesis error:", e);
-                        setIsSpeaking(false);
-                        utteranceRef.current = null;
-                    };
-
-                    window.speechSynthesis.speak(utterance);
+                    // 4. Start Speaking
                     setIsSpeaking(true);
+                    isSpeakingRef.current = true;
+                    speakChunk(chunks, 0, voice);
                 }
             };
 
