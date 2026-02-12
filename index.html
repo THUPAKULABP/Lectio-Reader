@@ -130,7 +130,8 @@
             Check: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>,
             Languages: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 8 6 6" /><path d="m4 14 6-6 2-3" /><path d="M2 5h12" /><path d="M7 2h1" /><path d="m22 22-5-10-5 10" /><path d="M14 18h6" /></svg>,
             X: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>,
-            Link: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+            Link: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>,
+            Mic: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></svg>
         };
 
         // --- Constants ---
@@ -220,7 +221,8 @@
             fontSize, setFontSize,
             showSettings, setShowSettings,
             isSpeaking, toggleSpeech,
-            setMode, canEdit
+            setMode, canEdit,
+            availableVoices, selectedVoiceURI, setSelectedVoiceURI
         }) => {
             const t = THEMES[theme];
 
@@ -260,6 +262,31 @@
                                 <div className="flex justify-between items-center mb-4 border-b pb-2 border-white/10">
                                     <span className="font-semibold text-sm uppercase tracking-wider opacity-70">Reader Settings</span>
                                     <button onClick={() => setShowSettings(false)}><Icons.X className="w-5 h-5 opacity-50 hover:opacity-100" /></button>
+                                </div>
+
+                                <div className="mb-6">
+                                    <label className="flex items-center gap-2 text-sm font-medium text-slate-500 mb-2">
+                                        <Icons.Mic className="w-4 h-4" />
+                                        <span>Voice Selection</span>
+                                    </label>
+                                    <select
+                                        value={selectedVoiceURI || ''}
+                                        onChange={(e) => setSelectedVoiceURI(e.target.value)}
+                                        className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                                    >
+                                        <option value="">Default Voice</option>
+                                        {availableVoices
+                                            .filter(v => {
+                                                const langCodeMap = { 'te': 'te', 'hi': 'hi', 'ur': 'ur', 'en': 'en' };
+                                                const target = langCodeMap[selectedLang.id] || 'en';
+                                                return v.lang.toLowerCase().includes(target);
+                                            })
+                                            .map(v => (
+                                                <option key={v.voiceURI} value={v.voiceURI}>
+                                                    {v.name} ({v.lang})
+                                                </option>
+                                            ))}
+                                    </select>
                                 </div>
 
                                 <div className="flex justify-between gap-2 mb-6">
@@ -347,6 +374,7 @@
             const [showSettings, setShowSettings] = React.useState(false);
             const [isSpeaking, setIsSpeaking] = React.useState(false);
             const [availableVoices, setAvailableVoices] = React.useState([]);
+            const [selectedVoiceURI, setSelectedVoiceURI] = React.useState(''); // Store voice URI
             const speechQueueRef = React.useRef([]);
             const isSpeakingRef = React.useRef(false); // Ref for immediate access in callbacks
 
@@ -525,12 +553,26 @@
                     const langCodeMap = { 'te': 'te-IN', 'hi': 'hi-IN', 'ur': 'ur-PK', 'en': 'en-US' };
                     const targetLang = langCodeMap[selectedLang.id] || 'en-US';
 
-                    // Use the state 'availableVoices' which is now guaranteed to be populated if possible
-                    let voice = availableVoices.find(v => v.lang.includes(targetLang));
+                    let voice = null;
 
+                    // If user selected a specific voice, try to use it
+                    if (selectedVoiceURI) {
+                        voice = availableVoices.find(v => v.voiceURI === selectedVoiceURI);
+                    }
+
+                    // Fallback to auto-detection if no manual selection or manual selection not found
                     if (!voice) {
-                        const shortLang = targetLang.split('-')[0];
-                        voice = availableVoices.find(v => v.lang.startsWith(shortLang));
+                        // Prioritize "Google" voices if available as they are usually better
+                        voice = availableVoices.find(v => v.lang.includes(targetLang) && v.name.includes("Google"));
+
+                        if (!voice) {
+                            voice = availableVoices.find(v => v.lang.includes(targetLang));
+                        }
+
+                        if (!voice) {
+                            const shortLang = targetLang.split('-')[0];
+                            voice = availableVoices.find(v => v.lang.startsWith(shortLang));
+                        }
                     }
 
                     // 4. Start Speaking
@@ -615,6 +657,9 @@
                             toggleSpeech={toggleSpeech}
                             setMode={setMode}
                             canEdit={canEdit}
+                            availableVoices={availableVoices}
+                            selectedVoiceURI={selectedVoiceURI}
+                            setSelectedVoiceURI={setSelectedVoiceURI}
                         />
                     )}
                 </div>
